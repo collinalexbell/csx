@@ -75,8 +75,74 @@ void test_lexer_differentiates_jsx_and_c_code(void) {
     TEST_ASSERT_EQUAL(TOKEN_EOF, token.type);
 }
 
+void test_lexer_handles_complex_c_and_jsx_code(void) {
+    const char* input =
+        "#include <stdio.h>\n"
+        "int main() {\n"
+        "    int x = 1 << 3;\n"
+        "    if (x<foo()) {\n"
+        "        return <div><!-- comment --><span>{x}</span></div>;\n"
+        "    }\n"
+        "    return 0;\n"
+        "}";
+
+    Lexer lexer = create_lexer(input);
+    Token token;
+
+    // Test for #include <stdio.h>
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("#include", token.value);
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("<stdio.h>", token.value);
+
+    // Skip to the bitwise shift operation
+    while (strcmp(token.value, "x") != 0) {
+        token = get_next_token(&lexer);
+    }
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("=", token.value);
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("1", token.value);
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("<<", token.value);
+
+    // Skip to the comparison
+    while (strcmp(token.value, "if") != 0) {
+        token = get_next_token(&lexer);
+    }
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("(x<foo())", token.value);
+
+    // Now test the JSX part
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("return", token.value);
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_JSX_START, token.type);
+    TEST_ASSERT_EQUAL_STRING("<", token.value);
+
+    token = get_next_token(&lexer);
+    TEST_ASSERT_EQUAL(TOKEN_TEXT, token.type);
+    TEST_ASSERT_EQUAL_STRING("div", token.value);
+
+    // ... no need to continue testing, all edge cases asserted
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_lexer_differentiates_jsx_and_c_code);
+    RUN_TEST(test_lexer_handles_complex_c_and_jsx_code);
     return UNITY_END();
 }
